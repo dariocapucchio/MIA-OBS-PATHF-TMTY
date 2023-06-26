@@ -34,8 +34,8 @@
 #define LED2_PIN     28   // LED - GPIO 28 (pico pin 34)
 #define DS_DEVICE_DISCONNECTED -1000 // Valor de error del sensor
 #define PWM_MAX_VALUE 255
-#define DELAY_MQTT 2000   // Tiempo de espera entre publicaciones
-#define CLIENT_ID "MIA_TMTY"  // ID del cliente (esta placa)
+#define DELAY_MQTT 3000   // Tiempo de espera entre publicaciones
+#define CLIENT_ID "MIA_TMTY_01"  // ID del cliente (esta placa)
 
 // FUNCIONES
 
@@ -132,12 +132,12 @@ void setup() {
   digitalWrite(LED2_PIN, LOW);    // LED OFF
   analogWrite(PWM_PIN, PWM_MAX_VALUE);    // PWM en alto - celda OFF
   myPID.SetMode(AUTOMATIC);        // PID ON
-   // Espero a que se aprete una tecla para poder verificar por puerto
+  // Espero a que se aprete una tecla para poder verificar por puerto
   // serie la conexion al broker mqtt. Despues se comenta
-  while(!Serial.available()){
+  /*while(!Serial.available()){
     Serial.println("-> Apreta una tecla cualquiera");
     delay(500);
-  }
+  }*/
   // Primer mensaje
   Serial.println("----------------------------------------");
   Serial.println("- MIA PATHFINDER - IAR ");
@@ -206,11 +206,12 @@ void setup() {
 }
 /* ============= LOOP CORE 0 =================================================== */
 void loop() {
-
+  /*
   if (Serial.available() > 0) {  // Si llego algo
     comando = Serial.read();     // Leo dato por el puerto serie
     flag_comando = true;         // Recuerdo que llego algo
   }
+  */
   switch (comando) {
     case 'A':   // Si llego una A -- modo automatico PID
       if (flag_comando == true) {                        // Ejecuto esto una sola vez
@@ -231,7 +232,7 @@ void loop() {
         mqttClient.publish("estado", "MANUAL");  // Publico el estado
         flag_comando = false;                            // Reinicio el flag
       }
-      analogWrite(PWM_PIN, cuentaPWM);  // PWM
+      analogWrite(PWM_PIN, 255-cuentaPWM);  // PWM
       break;
     case 'X':  // Si llego una X -- parada
       if (flag_comando == true) {
@@ -257,12 +258,14 @@ void loop() {
 
     Serial.println("mide --> ");
     medirTodo();
-    imprimirTodo();
+    //imprimirTodo();
     
     Serial.print("-> MQTT ");
     enviarDatosMQTT();
     Serial.println("enviado :)");
     previousMillis = millis();
+    // Toggle led - Alive test
+    pinToggle(LED2_PIN);
   }
   
   if (!client.connected()) {
@@ -271,9 +274,7 @@ void loop() {
   }
   mqttClient.loop();
   
-  delay(200);
-  // Toggle led - Alive test
-  pinToggle(LED2_PIN);
+  delay(100);
 }
 /* ============= FUNCIONES ===================================================== */
 
@@ -364,17 +365,19 @@ void imprimirTodo(void)
 */
 float medirTemp(float temp, rom_address_t addr)
 {
-  float aux = one_wire.temperature(addr);
+  float aux = one_wire.temperature(addr);     // Tomo el valor del sensor
   delay(100);
-  if (aux == DS_DEVICE_DISCONNECTED) {
+  if (aux == DS_DEVICE_DISCONNECTED) {        // Si es un valor erroneo
     Serial.println("DS - error de lectura");
-    ds_err++;
+    ds_err++;                                 // incremento la cuenta de errores
+    /*
     char dato[4];
     sprintf(dato,"%d",ds_err);
     mqttClient.publish("servicio/fallas_ds", dato);  // Publico el estado
-    return temp;
-  } else {
-    return aux;
+    */
+    return temp;                              // Devuelvo el valor anterior
+  } else {                                    // Si el valor no es erroneo
+    return aux;                               // Devuelvo el valor obtenido
   }
 }
 
@@ -396,11 +399,87 @@ void callback(char *topic, byte *payload, unsigned int length)
   {
     string_aux += (char)payload[i];
   }
-  comando = (char)payload[0];
+  if (topic_str == "control/comando") {
+    if ((char)payload[0] == 'W') {
+      cuentaPWM = string_aux.toInt();
+      Serial.print("PWM = ");
+      Serial.print(cuentaPWM);
+    } else {
+      comando = (char)payload[0];
+      Serial.print(comando);
+      flag_comando = true;  // Recuerdo que llego un comando
+    }
+  } else if (topic_str == "control/pid") {
+    switch ((char)payload[0]) {
+      case 'P':
+        Kp = string_aux.toDouble();
+        Serial.print("Kp = ");
+        Serial.print(Kp);
+        break;
+      case 'I':
+        Ki = string_aux.toDouble();
+        Serial.print("Ki = ");
+        Serial.print(Ki);
+        break;
+      case 'D':
+        Kd = string_aux.toDouble();
+        Serial.print("Kd = ");
+        Serial.print(Kd);
+        break;
+      case 'S':
+        Setpoint = string_aux.toDouble();
+        Serial.print("Setpoint = ");
+        Serial.print(Setpoint);
+        break;
+    }  // Fin switch payload PID
+  } else if (topic_str == "control/digital") {
+    switch ((char)payload[0]) {
+      case 'v':
+        if ((char)payload[1] == 't') {
+          digitalWrite(V_OUT_PIN, HIGH);  // Vout ON
+          Serial.print("Vout ON");
+        } else {
+          digitalWrite(V_OUT_PIN, LOW);  // Vout OFF
+          Serial.print("Vout OFF");
+        }
+        break;
+      case '1':
+        if ((char)payload[1] == 't') {
+          digitalWrite(DO1_PIN, HIGH);  // Vout ON
+          Serial.print("DO1 ON");
+        } else {
+          digitalWrite(DO1_PIN, LOW);  // Vout OFF
+          Serial.print("DO1 OFF");
+        }
+        break;
+      case '2':
+        if ((char)payload[1] == 't') {
+          digitalWrite(DO2_PIN, HIGH);  // Vout ON
+          Serial.print("DO2 ON");
+        } else {
+          digitalWrite(DO2_PIN, LOW);  // Vout OFF
+          Serial.print("DO2 OFF");
+        }
+        break;
+      case '3':
+        if ((char)payload[1] == 't') {
+          digitalWrite(DO3_PIN, HIGH);  // Vout ON
+          Serial.print("DO3 ON");
+        } else {
+          digitalWrite(DO3_PIN, LOW);  // Vout OFF
+          Serial.print("DO3 OFF");
+        }
+        break;
+    }  // Fin switch payload digital
+  } else {
+    Serial.print("topico desconocido :(");
+    mqttClient.publish("alertas","topico desconocido");
+  }
+  /*comando = (char)payload[0];
   dato_mqtt = string_aux.toFloat() * 100;
   Serial.print(comando);
   Serial.print(dato_mqtt);
-  flag_comando = true;
+  flag_comando = true;*/
   Serial.println();
 }
 
@@ -455,6 +534,26 @@ void enviarDatosMQTT (void)
   mqttClient.publish("medicion/temperatura", dato);
   sprintf(dato,"%.2f",I);
   mqttClient.publish("medicion/i_celda", dato);
+
+  sprintf(dato,"%d",ds_err);                        // Cantidad de fallas
+  mqttClient.publish("servicio/fallas_ds", dato);   // Publico el estado
+
+  sprintf(dato,"%.2f",ina0_i1);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina0_v1);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina0_i2);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina0_v2);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina1_i1);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina1_v1);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina1_i2);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina1_v2);
+  mqttClient.publish("medicion/RF", dato);
 }
 
 /**
