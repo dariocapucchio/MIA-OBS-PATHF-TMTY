@@ -86,13 +86,12 @@ uint16_t cuentaPWM = 0;
 
 // DEFINICION DE VARIABLES PARA ACS712
 // Utiliza la entrada analogica
-float I = 0.0;
-float Iant = 0.0;
-uint8_t n = 0;
-float Sensibilidad = 0.066;  // Sensibilidad en V/A para sensor de 30A
-
-uint16_t offsetI = 1604;
-double spanI = -0.032;
+float I = 0.0;                // Corriente actual
+float Iant = 0.0;             // Corriente 
+uint8_t n = 0;                // Cantidad de muestras de corriente
+//float Sensibilidad = 0.066;   // Sensibilidad en V/A para sensor de 30A
+uint16_t offsetI = 1604;      // I Offset
+double spanI = -0.032;        // I Span
 
 // DEFINICION DE OBJETO PARA SENSOR DE CORRIENTE INA3221
 INA3221 ina_0(INA3221_ADDR40_GND);  // Direccion 0x40 (A0 pin -> GND)
@@ -194,8 +193,9 @@ void setup() {
   mqttClient.subscribe("servicio/fallas_ds_reset");
   mqttClient.subscribe("servicio/hw_reset_response");
   mqttClient.subscribe("servicio/power_cal");
+  mqttClient.subscribe("servicio/i_cal");
 
-  mqttClient.publish("servicio/hw_reset","R");
+  mqttClient.publish("servicio/hw_reset","R");    // Publico el reset del hw
   mqttClient.loop();
 
   // Inicio variables
@@ -250,17 +250,32 @@ void loop() {
       break;
   }
 
-  I = Iant + ((analogRead(A0) - offsetI) * spanI);  // Conversion a corriente
-  n++;                                              // Cuento las mediciones
-  Iant = I;                                         // Guardo el valor
+  I = (analogRead(A0) - offsetI) * spanI;
+  Serial.print("-> I = "); Serial.println(I);
+  Iant += I;
+  n++;
+
+  //I = Iant + ((analogRead(A0) - offsetI) * spanI);  // Conversion a corriente
+  //n++;                                              // Cuento las mediciones
+  //Iant = I;                                         // Guardo el valor
+  /*
+  if (n < 10) {
+    I = Iant + ((analogRead(A0) - offsetI) * spanI);  // Conversion a corriente
+    n++;                                              // Cuento las mediciones
+    Iant = I;                                         // Guardo el valor
+  } else {
+    I = Iant / (n + 1);                       // Promedio los valores de corriente
+    n = 0;                                    // Reinicio la cuenta
+    Iant = I;                                 // Guardo el promedio
+  }
+  */
   
   if (millis() - previousMillis > DELAY_MQTT) {  // Envio todo al broker cada DELAY_MQTT
 
-    Serial.println("mide --> ");
+    Serial.print("mide -> ");
     medirTodo();
     //imprimirTodo();
-    
-    Serial.print("-> MQTT ");
+    Serial.print(" MQTT -> ");
     enviarDatosMQTT();
     Serial.println("enviado :)");
     previousMillis = millis();
@@ -471,6 +486,22 @@ void callback(char *topic, byte *payload, unsigned int length)
         }
         break;
     }  // Fin switch payload digital
+  } else if (topic_str == "servicio/i_cal") { 
+    switch ((char)payload[0]) {
+      case 'o':
+        offsetI = string_aux.toDouble();
+        Serial.print("I offset = ");
+        Serial.print(offsetI);
+        break;
+      case 's':
+        spanI = string_aux.toDouble();
+        Serial.print("I span = ");
+        Serial.print(spanI);
+        break;
+    }
+  } else if (topic_str == "servicio/hw_reset_response") {   // Respuesta del node red al reset
+    comando = (char)payload[0];                             // Recibo el estado del sistema
+    Serial.print(comando);
   } else {
     Serial.print("topico desconocido :(");
     mqttClient.publish("alertas","topico desconocido");
@@ -519,8 +550,9 @@ void enviarDatosMQTT (void)
     reconnect();
   }
 
-  char dato[6];
-  sprintf(dato,"%.2f",temp1);
+  char dato[6];   // Cadena de caracteres donde se carga el dato a enviar
+
+  sprintf(dato,"%.2f",temp1);                       // Envio las temperaturas
   mqttClient.publish("medicion/temperatura", dato);
   sprintf(dato,"%.2f",temp2);
   mqttClient.publish("medicion/temperatura", dato);
@@ -532,25 +564,26 @@ void enviarDatosMQTT (void)
   mqttClient.publish("medicion/temperatura", dato);
   sprintf(dato,"%.2f",temp6);
   mqttClient.publish("medicion/temperatura", dato);
-  sprintf(dato,"%.2f",I);
+
+  sprintf(dato,"%.2f",I);                           // Envio la corriente de la celda
   mqttClient.publish("medicion/i_celda", dato);
 
   sprintf(dato,"%d",ds_err);                        // Cantidad de fallas
   mqttClient.publish("servicio/fallas_ds", dato);   // Publico el estado
 
-  sprintf(dato,"%.2f",ina0_i1);
+  sprintf(dato,"%.2f",ina0_i1*1000.0);              // Envio las corrientes en [mA]
   mqttClient.publish("medicion/RF", dato);
-  sprintf(dato,"%.2f",ina0_v1);
+  sprintf(dato,"%.2f",ina0_v1);                     // Envio las tensiones en [V]
   mqttClient.publish("medicion/RF", dato);
-  sprintf(dato,"%.2f",ina0_i2);
+  sprintf(dato,"%.2f",ina0_i2*1000.0);
   mqttClient.publish("medicion/RF", dato);
   sprintf(dato,"%.2f",ina0_v2);
   mqttClient.publish("medicion/RF", dato);
-  sprintf(dato,"%.2f",ina1_i1);
+  sprintf(dato,"%.2f",ina1_i1*1000.0);
   mqttClient.publish("medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_v1);
   mqttClient.publish("medicion/RF", dato);
-  sprintf(dato,"%.2f",ina1_i2);
+  sprintf(dato,"%.2f",ina1_i2*1000.0);
   mqttClient.publish("medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_v2);
   mqttClient.publish("medicion/RF", dato);
