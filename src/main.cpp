@@ -21,6 +21,7 @@
 #include <PID_v1.h>
 #include "one_wire.h"
 #include "ina3221.h"
+#include "Timers.h"
 /* ============= DEFINICIONES ================================================== */
 // HARDWARE
 #define DO1_PIN       6   // Salida digital 1 - GPIO 6 (pico pin 9)
@@ -34,9 +35,9 @@
 #define LED2_PIN     28   // LED - GPIO 28 (pico pin 34)
 #define DS_DEVICE_DISCONNECTED -1000 // Valor de error del sensor
 #define PWM_MAX_VALUE 255
-#define DELAY_MQTT 3000   // Tiempo de espera entre publicaciones
+#define DELAY_MQTT 3000   // Tiempo de espera entre publicaciones 3000 ms
 #define CLIENT_ID "MIA_TMTY_01"  // ID del cliente (esta placa)
-
+#define WDT 8000    // Watchdog timer en 8000 ms
 // FUNCIONES
 
 float medirTemp(float temp, rom_address_t addr);
@@ -107,7 +108,7 @@ float ina1_i1_span = 1.00, ina1_v1_span = 1.00;
 float ina1_i2_span = 1.00, ina1_v2_span = 1.00;
 
 // VARIABLES DE FLUJO DE PROGRAMA
-
+Timers wd_timer;      // Watchdog timer
 char comando;         // Comando para la maquina de estados
 bool flag_comando;    // Alerta nuevo comado
 /* ============= SETUP CORE 0 ================================================== */
@@ -142,6 +143,7 @@ void setup() {
   Serial.println("- MIA PATHFINDER - IAR ");
   Serial.println("- Placa telemetria ");
   Serial.println("----------------------------------------");
+  wd_timer.start(WDT);   // Habilito el watchdog timer
   // Inicio comunicacion oneWire
   Serial.print("-> Iniciando comunicacion one wire . . . ");
   one_wire.init();
@@ -258,20 +260,8 @@ void loop() {
   //I = Iant + ((analogRead(A0) - offsetI) * spanI);  // Conversion a corriente
   //n++;                                              // Cuento las mediciones
   //Iant = I;                                         // Guardo el valor
-  /*
-  if (n < 10) {
-    I = Iant + ((analogRead(A0) - offsetI) * spanI);  // Conversion a corriente
-    n++;                                              // Cuento las mediciones
-    Iant = I;                                         // Guardo el valor
-  } else {
-    I = Iant / (n + 1);                       // Promedio los valores de corriente
-    n = 0;                                    // Reinicio la cuenta
-    Iant = I;                                 // Guardo el promedio
-  }
-  */
   
   if (millis() - previousMillis > DELAY_MQTT) {  // Envio todo al broker cada DELAY_MQTT
-
     Serial.print("mide -> ");
     medirTodo();
     //imprimirTodo();
@@ -282,13 +272,13 @@ void loop() {
     // Toggle led - Alive test
     pinToggle(LED2_PIN);
   }
-  
+  // Reviso conexión al servidor MQTT
   if (!client.connected()) {
     Serial.println("reconectando...");
     reconnect();
   }
-  mqttClient.loop();
-  
+  mqttClient.loop();        // Reviso topicos MQTT
+  wd_timer.restart();    // Reinicio el watchdog timer
   delay(100);
 }
 /* ============= FUNCIONES ===================================================== */
@@ -307,10 +297,13 @@ void medirTodo(void)
   temp5 = medirTemp(temp5, address5);  // Temperatura ambiente 3
   temp6 = medirTemp(temp6, address6);  // Temperatura ambiente 4
 
-  //I = (analogRead(A0) - offsetI) * spanI;   // Lectura ADC y conversion a corriente
-  I = Iant / (n + 1);                       // Promedio los valores de corriente
-  n = 0;                                    // Reinicio la cuenta
-  Iant = I;                                 // Guardo el promedio
+  if (comando == 'X') {                      // Si esta parado
+    I = (analogRead(A0) - offsetI) * spanI;   // Lectura ADC y conversion a corriente
+  } else {                                    // Si no esta parado
+    I = Iant / (n + 1);                       // Promedio los valores de corriente
+    n = 0;                                    // Reinicio la cuenta
+    Iant = I;                                 // Guardo el promedio
+  }
 
   ina0_i1 = ina_0.getCurrent(INA3221_CH1) * ina0_i1_span;   // Coriente amplificador 1
   ina0_v1 = ina_0.getVoltage(INA3221_CH1) * ina0_v1_span;   // Tension amplificador 1
