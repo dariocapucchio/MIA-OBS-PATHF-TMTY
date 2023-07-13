@@ -378,11 +378,6 @@ float medirTemp(float temp, rom_address_t addr)
   if (aux == DS_DEVICE_DISCONNECTED) {        // Si es un valor erroneo
     Serial.println("DS - error de lectura");
     ds_err++;                                 // incremento la cuenta de errores
-    /*
-    char dato[4];
-    sprintf(dato,"%d",ds_err);
-    mqttClient.publish("servicio/fallas_ds", dato);  // Publico el estado
-    */
     return temp;                              // Devuelvo el valor anterior
   } else {                                    // Si el valor no es erroneo
     return aux;                               // Devuelvo el valor obtenido
