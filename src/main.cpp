@@ -50,7 +50,8 @@ void imprimirTodo(void);
 
 // DEFINICIONES PARA LA CONEXION ETHERNET CON ENC28J60
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xAE, 0xAF};  // Dirección MAC del módulo Ethernet
-IPAddress server(163, 10, 43, 68);                  // IP del broker MQTT
+//IPAddress server(192, 168, 1, 139);                  // IP del broker MQTT
+IPAddress server(192, 168, 1, 100);
 EthernetClient client;                              // Cliente Ethernet
 PubSubClient mqttClient(client);                    // Cliente mqtt
 
@@ -70,6 +71,8 @@ rom_address_t address5 = { 0x28, 0x7B, 0xAF, 0xCA, 0x0A, 0x00, 0x00, 0x6A };  //
 //rom_address_t address6 = { 0x28, 0x7C, 0xA8, 0x96, 0xF0, 0x01, 0x3C, 0x4A };  // Dirección del sensor 6
 rom_address_t address6 = { 0x28, 0x51, 0xA5, 0x49, 0xF6, 0xDF, 0x3C, 0x94 };
 
+rom_address_t ds_addr[6];
+
 float temp1;  // Temperatura lado caliente
 float temp2;  // Temperatura lado frio
 float temp3;  // Temperatura ambiente 1
@@ -77,6 +80,7 @@ float temp4;  // Temperatura ambiente 2
 float temp5;  // Temperatura ambiente 3
 float temp6;  // Temperatura ambiente 4
 
+uint8_t ds_cant;  // Cantidad de sensores conectados
 uint8_t ds_err;   // Contador para las señales con error
 
 // DEFINICION DE VARIABLES PARA EL PID
@@ -100,12 +104,16 @@ INA3221 ina_1(INA3221_ADDR41_VCC);  // Direccion 0x41 (A0 pin -> VCC)
 
 float ina0_i1, ina0_v1; // Corriente y tension del amplificador 1
 float ina0_i2, ina0_v2; // Corriente y tension del amplificador 2
-float ina1_i1, ina1_v1; // Corriente y tension del amplificador 1
-float ina1_i2, ina1_v2; // Corriente y tension del amplificador 2
+float ina0_i3, ina0_v3; // Corriente y tension del amplificador 3
+float ina1_i1, ina1_v1; // Corriente y tension del amplificador 4
+float ina1_i2, ina1_v2; // Corriente y tension del amplificador 5
+float ina1_i3, ina1_v3; // Corriente y tension del amplificador 6
 float ina0_i1_span = 1.00, ina0_v1_span = 1.00;
 float ina0_i2_span = 1.00, ina0_v2_span = 1.00;
+float ina0_i3_span = 1.00, ina0_v3_span = 1.00;
 float ina1_i1_span = 1.00, ina1_v1_span = 1.00;
 float ina1_i2_span = 1.00, ina1_v2_span = 1.00;
+float ina1_i3_span = 1.00, ina1_v3_span = 1.00;
 
 // VARIABLES DE FLUJO DE PROGRAMA
 Timers wd_timer;      // Watchdog timer
@@ -134,10 +142,10 @@ void setup() {
   myPID.SetMode(AUTOMATIC);        // PID ON
   // Espero a que se aprete una tecla para poder verificar por puerto
   // serie la conexion al broker mqtt. Despues se comenta
-  /*while(!Serial.available()){
+  while(!Serial.available()){
     Serial.println("-> Apreta una tecla cualquiera");
     delay(500);
-  }*/
+  }
   // Primer mensaje
   Serial.println("----------------------------------------");
   Serial.println("- MIA PATHFINDER - IAR ");
@@ -148,6 +156,13 @@ void setup() {
   Serial.print("-> Iniciando comunicacion one wire . . . ");
   one_wire.init();
   Serial.println("OK");
+  ds_cant = one_wire.find_and_count_devices_on_bus();
+  Serial.print("--> Sensores encontrados: ");
+  Serial.println(ds_cant);
+  for (uint8_t i=0; i<ds_cant; i++) {
+    ds_addr[i] = one_wire.get_address(i);
+  }
+  
   // Inicio INA3221
   Serial.print("-> Iniciando comunicacion I2C con modulos INA3221 . . . ");
   ina_0.begin(&Wire);
@@ -309,10 +324,14 @@ void medirTodo(void)
   ina0_v1 = ina_0.getVoltage(INA3221_CH1) * ina0_v1_span;   // Tension amplificador 1
   ina0_i2 = ina_0.getCurrent(INA3221_CH2) * ina0_i2_span;   // Coriente amplificador 2
   ina0_v2 = ina_0.getVoltage(INA3221_CH2) * ina0_v2_span;   // Coriente amplificador 2
-  ina1_i1 = ina_1.getCurrent(INA3221_CH1) * ina1_i1_span;   // Coriente amplificador 3
-  ina1_v1 = ina_1.getVoltage(INA3221_CH1) * ina1_v1_span;   // Coriente amplificador 3
-  ina1_i2 = ina_1.getCurrent(INA3221_CH2) * ina1_i2_span;   // Coriente amplificador 4
-  ina1_v2 = ina_1.getVoltage(INA3221_CH2) * ina1_v2_span;   // Coriente amplificador 4
+  ina0_i3 = ina_0.getCurrent(INA3221_CH3) * ina0_i3_span;   // Coriente amplificador 3
+  ina0_v3 = ina_0.getVoltage(INA3221_CH3) * ina0_v3_span;   // Coriente amplificador 3
+  ina1_i1 = ina_1.getCurrent(INA3221_CH1) * ina1_i1_span;   // Coriente amplificador 4
+  ina1_v1 = ina_1.getVoltage(INA3221_CH1) * ina1_v1_span;   // Coriente amplificador 4
+  ina1_i2 = ina_1.getCurrent(INA3221_CH2) * ina1_i2_span;   // Coriente amplificador 5
+  ina1_v2 = ina_1.getVoltage(INA3221_CH2) * ina1_v2_span;   // Coriente amplificador 5
+  ina1_i3 = ina_1.getCurrent(INA3221_CH3) * ina1_i3_span;   // Coriente amplificador 6
+  ina1_v3 = ina_1.getVoltage(INA3221_CH3) * ina1_v3_span;   // Coriente amplificador 6
 }
 
 /**
