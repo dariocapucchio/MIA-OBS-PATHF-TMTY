@@ -36,7 +36,8 @@
 #define DS_DEVICE_DISCONNECTED -1000 // Valor de error del sensor
 #define PWM_MAX_VALUE 255
 #define DELAY_MQTT 3000   // Tiempo de espera entre publicaciones 3000 ms
-#define CLIENT_ID "MIA_TMTY_01"  // ID del cliente (esta placa)
+//#define CLIENT_ID "MIA_TMTY_01"  // ID del cliente (esta placa)
+#define CLIENT_ID "MIA_TMTY_02"  // ID del cliente
 #define WDT 8000    // Watchdog timer en 8000 ms
 // FUNCIONES
 
@@ -47,11 +48,12 @@ void reconnect(void);                                           // Reconectar al
 void enviarDatosMQTT (void);
 void pinToggle(int pin);
 void imprimirTodo(void);
+void imprimirDireccionDS(rom_address_t addr);
 
 // DEFINICIONES PARA LA CONEXION ETHERNET CON ENC28J60
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xAE, 0xAF};  // Dirección MAC del módulo Ethernet
-//IPAddress server(192, 168, 1, 139);                  // IP del broker MQTT
-IPAddress server(192, 168, 1, 100);
+//IPAddress server(192, 168, 1, 139);               // IP del broker MQTT conectado a la red local
+IPAddress server(192, 168, 1, 100);               // IP del broker MQTT conectado al router de PET
 EthernetClient client;                              // Cliente Ethernet
 PubSubClient mqttClient(client);                    // Cliente mqtt
 
@@ -142,10 +144,10 @@ void setup() {
   myPID.SetMode(AUTOMATIC);        // PID ON
   // Espero a que se aprete una tecla para poder verificar por puerto
   // serie la conexion al broker mqtt. Despues se comenta
-  while(!Serial.available()){
+  /*while(!Serial.available()){
     Serial.println("-> Apreta una tecla cualquiera");
     delay(500);
-  }
+  }*/
   // Primer mensaje
   Serial.println("----------------------------------------");
   Serial.println("- MIA PATHFINDER - IAR ");
@@ -159,10 +161,17 @@ void setup() {
   ds_cant = one_wire.find_and_count_devices_on_bus();
   Serial.print("--> Sensores encontrados: ");
   Serial.println(ds_cant);
-  for (uint8_t i=0; i<ds_cant; i++) {
+  for (uint8_t i=0; i<ds_cant; i++) {   // Tomo las direcciones de los sensores conectados
     ds_addr[i] = one_wire.get_address(i);
+    imprimirDireccionDS(ds_addr[i]);
   }
-  
+  address1 = ds_addr[0];
+  address2 = ds_addr[1];
+  address3 = ds_addr[2];
+  address4 = ds_addr[3];
+  address5 = ds_addr[4];
+  address6 = ds_addr[5];
+
   // Inicio INA3221
   Serial.print("-> Iniciando comunicacion I2C con modulos INA3221 . . . ");
   ina_0.begin(&Wire);
@@ -323,15 +332,15 @@ void medirTodo(void)
   ina0_i1 = ina_0.getCurrent(INA3221_CH1) * ina0_i1_span;   // Coriente amplificador 1
   ina0_v1 = ina_0.getVoltage(INA3221_CH1) * ina0_v1_span;   // Tension amplificador 1
   ina0_i2 = ina_0.getCurrent(INA3221_CH2) * ina0_i2_span;   // Coriente amplificador 2
-  ina0_v2 = ina_0.getVoltage(INA3221_CH2) * ina0_v2_span;   // Coriente amplificador 2
+  ina0_v2 = ina_0.getVoltage(INA3221_CH2) * ina0_v2_span;   // Tension amplificador 2
   ina0_i3 = ina_0.getCurrent(INA3221_CH3) * ina0_i3_span;   // Coriente amplificador 3
-  ina0_v3 = ina_0.getVoltage(INA3221_CH3) * ina0_v3_span;   // Coriente amplificador 3
+  ina0_v3 = ina_0.getVoltage(INA3221_CH3) * ina0_v3_span;   // Tension amplificador 3
   ina1_i1 = ina_1.getCurrent(INA3221_CH1) * ina1_i1_span;   // Coriente amplificador 4
-  ina1_v1 = ina_1.getVoltage(INA3221_CH1) * ina1_v1_span;   // Coriente amplificador 4
+  ina1_v1 = ina_1.getVoltage(INA3221_CH1) * ina1_v1_span;   // Tension amplificador 4
   ina1_i2 = ina_1.getCurrent(INA3221_CH2) * ina1_i2_span;   // Coriente amplificador 5
-  ina1_v2 = ina_1.getVoltage(INA3221_CH2) * ina1_v2_span;   // Coriente amplificador 5
+  ina1_v2 = ina_1.getVoltage(INA3221_CH2) * ina1_v2_span;   // Tension amplificador 5
   ina1_i3 = ina_1.getCurrent(INA3221_CH3) * ina1_i3_span;   // Coriente amplificador 6
-  ina1_v3 = ina_1.getVoltage(INA3221_CH3) * ina1_v3_span;   // Coriente amplificador 6
+  ina1_v3 = ina_1.getVoltage(INA3221_CH3) * ina1_v3_span;   // Tension amplificador 6
 }
 
 /**
@@ -377,6 +386,20 @@ void imprimirTodo(void)
   Serial.print("A - INA1 V2: ");
   Serial.print(ina1_v2);
   Serial.println("V");
+}
+
+/**
+ * @brief Imprime por puerto serie la direccion del sensor de temperatura
+ * 
+ * @param addr dereccion del sensor a imprimir
+*/
+void imprimirDireccionDS(rom_address_t addr)
+{
+  for (uint8_t i=0; i<8; i++) {
+    Serial.print(addr.rom[i]);
+    Serial.print("-");
+  }
+  Serial.println();
 }
 
 /**
@@ -586,6 +609,10 @@ void enviarDatosMQTT (void)
   mqttClient.publish("medicion/RF", dato);
   sprintf(dato,"%.2f",ina0_v2);
   mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina0_i3*1000.0);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina0_v3);
+  mqttClient.publish("medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_i1*1000.0);
   mqttClient.publish("medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_v1);
@@ -593,6 +620,10 @@ void enviarDatosMQTT (void)
   sprintf(dato,"%.2f",ina1_i2*1000.0);
   mqttClient.publish("medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_v2);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina1_i3*1000.0);
+  mqttClient.publish("medicion/RF", dato);
+  sprintf(dato,"%.2f",ina1_v3);
   mqttClient.publish("medicion/RF", dato);
 }
 
