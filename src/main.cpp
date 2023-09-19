@@ -144,10 +144,10 @@ void setup() {
   myPID.SetMode(AUTOMATIC);        // PID ON
   // Espero a que se aprete una tecla para poder verificar por puerto
   // serie la conexion al broker mqtt. Despues se comenta
-  /*while(!Serial.available()){
+  while(!Serial.available()){
     Serial.println("-> Apreta una tecla cualquiera");
     delay(500);
-  }*/
+  }
   // Primer mensaje
   Serial.println("----------------------------------------");
   Serial.println("- MIA PATHFINDER - IAR ");
@@ -163,6 +163,9 @@ void setup() {
   Serial.println(ds_cant);
   for (uint8_t i=0; i<ds_cant; i++) {   // Tomo las direcciones de los sensores conectados
     ds_addr[i] = one_wire.get_address(i);
+    Serial.print("--> Sensor ");
+    Serial.print(i);
+    Serial.print(": ");
     imprimirDireccionDS(ds_addr[i]);
   }
   address1 = ds_addr[0];
