@@ -28,7 +28,6 @@
 #define DO2_PIN       7   // Salida digital 2 - GPIO 7 (pico pin 10)
 #define DO3_PIN       8   // Salida digital 3 - GPIO 8 (pico pin 11)
 #define V_OUT_PIN    20   // Salida digital fuente - GPIO 20 (pico pin 26)
-//#define ONE_WIRE_PIN 21   // Sensores de temperatura - GPIO 21 (pico pin 27)
 #define ONE_WIRE_PIN 14   // Sensores de temperatura - GPIO 14 (pico pin 19)
 #define PWM_PIN      22   // Salida PWM - GPIO 22 (pico pin 29)
 #define LED1_PIN     27   // LED - GPIO 27 (pico pin 32)
@@ -36,9 +35,13 @@
 #define DS_DEVICE_DISCONNECTED -1000 // Valor de error del sensor
 #define PWM_MAX_VALUE 255
 #define DELAY_MQTT 3000   // Tiempo de espera entre publicaciones 3000 ms
-//#define CLIENT_ID "MIA_TMTY_01"  // ID del cliente (esta placa)
-#define CLIENT_ID "MIA_TMTY_02"  // ID del cliente
 #define WDT 8000    // Watchdog timer en 8000 ms
+// Seleccionar el ID de la placa correspondiente
+//#define CLIENT_ID "MIA_TMTY_01"  // ID del cliente (esta placa)
+//#define CLIENT_ID "MIA_TMTY_02"  // ID del cliente
+//#define CLIENT_ID "MIA_TMTY_03"  // ID del cliente
+#define CLIENT_ID "MIA_TMTY_04"  // ID del cliente
+
 // FUNCIONES
 
 float medirTemp(float temp, rom_address_t addr);
@@ -53,7 +56,7 @@ void imprimirDireccionDS(rom_address_t addr);
 // DEFINICIONES PARA LA CONEXION ETHERNET CON ENC28J60
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xAE, 0xAF};  // Dirección MAC del módulo Ethernet
 //IPAddress server(192, 168, 1, 139);               // IP del broker MQTT conectado a la red local
-IPAddress server(192, 168, 1, 100);               // IP del broker MQTT conectado al router de PET
+IPAddress server(192, 168, 1, 100);               // IP del broker MQTT conectado al router (PC del observatorio)
 EthernetClient client;                              // Cliente Ethernet
 PubSubClient mqttClient(client);                    // Cliente mqtt
 
