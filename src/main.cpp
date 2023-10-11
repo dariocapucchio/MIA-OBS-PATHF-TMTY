@@ -147,10 +147,10 @@ void setup() {
   myPID.SetMode(AUTOMATIC);        // PID ON
   // Espero a que se aprete una tecla para poder verificar por puerto
   // serie la conexion al broker mqtt. Despues se comenta
-  while(!Serial.available()){
+  /*while(!Serial.available()){
     Serial.println("-> Apreta una tecla cualquiera");
     delay(500);
-  }
+  }*/
   // Primer mensaje
   Serial.println("----------------------------------------");
   Serial.println("- MIA PATHFINDER - IAR ");
@@ -219,15 +219,15 @@ void setup() {
     reconnect();
   }
   // Suscripciones MQTT
-  mqttClient.subscribe("control/comando");
-  mqttClient.subscribe("control/pid");
-  mqttClient.subscribe("control/digital");
-  mqttClient.subscribe("servicio/fallas_ds_reset");
-  mqttClient.subscribe("servicio/hw_reset_response");
-  mqttClient.subscribe("servicio/power_cal");
-  mqttClient.subscribe("servicio/i_cal");
+  mqttClient.subscribe("MIA_TMTY_04/control/comando");
+  mqttClient.subscribe("MIA_TMTY_04/control/pid");
+  mqttClient.subscribe("MIA_TMTY_04/control/digital");
+  mqttClient.subscribe("MIA_TMTY_04/servicio/fallas_ds_reset");
+  mqttClient.subscribe("MIA_TMTY_04/servicio/hw_reset_response");
+  mqttClient.subscribe("MIA_TMTY_04/servicio/power_cal");
+  mqttClient.subscribe("MIA_TMTY_04/servicio/i_cal");
 
-  mqttClient.publish("servicio/hw_reset","R");    // Publico el reset del hw
+  mqttClient.publish("MIA_TMTY_04/servicio/hw_reset","R");    // Publico el reset del hw
   mqttClient.loop();
 
   // Inicio variables
@@ -450,7 +450,7 @@ void callback(char *topic, byte *payload, unsigned int length)
   {
     string_aux += (char)payload[i];
   }
-  if (topic_str == "control/comando") {
+  if (topic_str == "MIA_TMTY_04/control/comando") {
     if ((char)payload[0] == 'W') {
       cuentaPWM = string_aux.toInt();
       Serial.print("PWM = ");
@@ -460,7 +460,7 @@ void callback(char *topic, byte *payload, unsigned int length)
       Serial.print(comando);
       flag_comando = true;  // Recuerdo que llego un comando
     }
-  } else if (topic_str == "control/pid") {
+  } else if (topic_str == "MIA_TMTY_04/control/pid") {
     switch ((char)payload[0]) {
       case 'P':
         Kp = string_aux.toDouble();
@@ -483,7 +483,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print(Setpoint);
         break;
     }  // Fin switch payload PID
-  } else if (topic_str == "control/digital") {
+  } else if (topic_str == "MIA_TMTY_04/control/digital") {
     switch ((char)payload[0]) {
       case 'v':
         if ((char)payload[1] == 't') {
@@ -522,7 +522,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         }
         break;
     }  // Fin switch payload digital
-  } else if (topic_str == "servicio/i_cal") { 
+  } else if (topic_str == "MIA_TMTY_04/servicio/i_cal") { 
     switch ((char)payload[0]) {
       case 'o':
         offsetI = string_aux.toDouble();
@@ -535,7 +535,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print(spanI);
         break;
     }
-  } else if (topic_str == "servicio/hw_reset_response") {   // Respuesta del node red al reset
+  } else if (topic_str == "MIA_TMTY_04/servicio/hw_reset_response") {   // Respuesta del node red al reset
     comando = (char)payload[0];                             // Recibo el estado del sistema
     Serial.print(comando);
   } else {
@@ -589,48 +589,48 @@ void enviarDatosMQTT (void)
   char dato[6];   // Cadena de caracteres donde se carga el dato a enviar
 
   sprintf(dato,"%.2f",temp1);                       // Envio las temperaturas
-  mqttClient.publish("medicion/temperatura", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/temperatura", dato);
   sprintf(dato,"%.2f",temp2);
-  mqttClient.publish("medicion/temperatura", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/temperatura", dato);
   sprintf(dato,"%.2f",temp3);
-  mqttClient.publish("medicion/temperatura", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/temperatura", dato);
   sprintf(dato,"%.2f",temp4);
-  mqttClient.publish("medicion/temperatura", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/temperatura", dato);
   sprintf(dato,"%.2f",temp5);
-  mqttClient.publish("medicion/temperatura", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/temperatura", dato);
   sprintf(dato,"%.2f",temp6);
-  mqttClient.publish("medicion/temperatura", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/temperatura", dato);
 
   sprintf(dato,"%.2f",I);                           // Envio la corriente de la celda
-  mqttClient.publish("medicion/i_celda", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/i_celda", dato);
 
   sprintf(dato,"%d",ds_err);                        // Cantidad de fallas
-  mqttClient.publish("servicio/fallas_ds", dato);   // Publico el estado
+  mqttClient.publish("MIA_TMTY_04/servicio/fallas_ds", dato);   // Publico el estado
 
   sprintf(dato,"%.2f",ina0_i1*1000.0);              // Envio las corrientes en [mA]
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina0_v1);                     // Envio las tensiones en [V]
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina0_i2*1000.0);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina0_v2);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina0_i3*1000.0);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina0_v3);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_i1*1000.0);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_v1);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_i2*1000.0);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_v2);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_i3*1000.0);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
   sprintf(dato,"%.2f",ina1_v3);
-  mqttClient.publish("medicion/RF", dato);
+  mqttClient.publish("MIA_TMTY_04/medicion/RF", dato);
 }
 
 /**
