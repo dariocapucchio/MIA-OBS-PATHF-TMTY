@@ -23,6 +23,11 @@
 #include "ina3221.h"
 #include "Timers.h"
 /* ============= DEFINICIONES ================================================== */
+// FLUJO
+// Para realizar pruebas por el puerto serial poner en 1
+// Para realizara el control via mqtt poner en 0
+#define PRUEBA_SERIAL 1
+
 // HARDWARE
 #define DO1_PIN       6   // Salida digital 1 - GPIO 6 (pico pin 9)
 #define DO2_PIN       7   // Salida digital 2 - GPIO 7 (pico pin 10)
@@ -190,6 +195,8 @@ void setup() {
   ina_1.setFilterRes(10, 10, 10);
   Serial.println("OK");
   
+#if PRUEBA_SERIAL == 0
+
   // Inicio modulo Ethernet
   Serial.print("-> Inicializando modulo Ethernet.... ");
   Serial.println(Ethernet.begin(mac));
@@ -230,6 +237,8 @@ void setup() {
   mqttClient.publish("MIA_TMTY_04/servicio/hw_reset","R");    // Publico el reset del hw
   mqttClient.loop();
 
+#endif
+  
   // Inicio variables
   ds_err = 0;
   Setpoint = 20.0;
@@ -238,12 +247,16 @@ void setup() {
 }
 /* ============= LOOP CORE 0 =================================================== */
 void loop() {
-  /*
+ 
+#if PRUEBA_SERIAL == 1
+  // Solo para pruebas, comentar para el montaje
   if (Serial.available() > 0) {  // Si llego algo
     comando = Serial.read();     // Leo dato por el puerto serie
     flag_comando = true;         // Recuerdo que llego algo
   }
-  */
+#endif  
+
+
   switch (comando) {
     case 'A':   // Si llego una A -- modo automatico PID
       if (flag_comando == true) {                        // Ejecuto esto una sola vez
@@ -283,7 +296,7 @@ void loop() {
   }
 
   I = (analogRead(A0) - offsetI) * spanI;
-  Serial.print("-> I = "); Serial.println(I);
+  //Serial.print("-> I = "); Serial.println(I);
   Iant += I;
   n++;
 
@@ -291,6 +304,8 @@ void loop() {
   //n++;                                              // Cuento las mediciones
   //Iant = I;                                         // Guardo el valor
   
+#if PRUEBA_SERIAL == 0
+
   if (millis() - previousMillis > DELAY_MQTT) {  // Envio todo al broker cada DELAY_MQTT
     Serial.print("mide -> ");
     medirTodo();
@@ -308,6 +323,15 @@ void loop() {
     reconnect();
   }
   mqttClient.loop();        // Reviso topicos MQTT
+
+#else
+  if (millis() - previousMillis > DELAY_MQTT) {  // Envio todo al broker cada DELAY_MQTT
+    Serial.print("mide -> ");
+    medirTodo();
+    imprimirTodo();
+  }
+#endif
+
   wd_timer.restart();    // Reinicio el watchdog timer
   delay(100);
 }
