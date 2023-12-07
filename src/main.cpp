@@ -97,7 +97,7 @@ uint8_t ds_err;   // Contador para las señales con error
 double Setpoint, Input, Output;
 double Kp = 20.0, Ki = 5.0, Kd = 1.0;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
-uint16_t cuentaPWM = 0;
+uint16_t cuentaPWM = PWM_MAX_VALUE / 2;
 
 // DEFINICION DE VARIABLES PARA ACS712
 // Utiliza la entrada analogica
@@ -152,10 +152,12 @@ void setup() {
   myPID.SetMode(AUTOMATIC);        // PID ON
   // Espero a que se aprete una tecla para poder verificar por puerto
   // serie la conexion al broker mqtt. Despues se comenta
-  /*while(!Serial.available()){
+#if PRUEBA_SERIAL == 1
+  while(!Serial.available()){
     Serial.println("-> Apreta una tecla cualquiera");
     delay(500);
-  }*/
+  }
+#endif
   // Primer mensaje
   Serial.println("----------------------------------------");
   Serial.println("- MIA PATHFINDER - IAR ");
@@ -277,7 +279,7 @@ void loop() {
         mqttClient.publish("estado", "MANUAL");  // Publico el estado
         flag_comando = false;                            // Reinicio el flag
       }
-      analogWrite(PWM_PIN, 255-cuentaPWM);  // PWM
+      analogWrite(PWM_PIN,PWM_MAX_VALUE-cuentaPWM);  // PWM
       break;
     case 'X':  // Si llego una X -- parada
       if (flag_comando == true) {
@@ -329,6 +331,8 @@ void loop() {
     Serial.print("mide -> ");
     medirTodo();
     imprimirTodo();
+    // Toggle led - Alive test
+    pinToggle(LED2_PIN);
   }
 #endif
 
