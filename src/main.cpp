@@ -26,7 +26,7 @@
 // FLUJO
 // Para realizar pruebas por el puerto serial poner en 1
 // Para realizara el control via mqtt poner en 0
-#define PRUEBA_SERIAL 1
+#define PRUEBA_SERIAL 0
 
 // HARDWARE
 #define DO1_PIN       6   // Salida digital 1 - GPIO 6 (pico pin 9)
