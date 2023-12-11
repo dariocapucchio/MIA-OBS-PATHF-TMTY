@@ -46,6 +46,7 @@
 //#define CLIENT_ID "MIA_TMTY_02"  // ID del cliente
 #define CLIENT_ID "MIA_TMTY_03"  // ID del cliente
 //#define CLIENT_ID "MIA_TMTY_04"  // ID del cliente
+#define TOPICO_ESTADO "/estado"
 
 // FUNCIONES
 
@@ -129,6 +130,7 @@ float ina1_i3_span = 1.00, ina1_v3_span = 1.00;
 Timers wd_timer;      // Watchdog timer
 char comando;         // Comando para la maquina de estados
 bool flag_comando;    // Alerta nuevo comado
+char topico_string[50];
 /* ============= SETUP CORE 0 ================================================== */
 void setup() {
   Serial.begin(115200);   // Comunicacion serie con la PC - USB
@@ -179,11 +181,11 @@ void setup() {
     imprimirDireccionDS(ds_addr[i]);
   }
   address1 = ds_addr[0];
-  address2 = ds_addr[1];
-  address3 = ds_addr[2];
+  address2 = ds_addr[5];
+  address3 = ds_addr[4];
   address4 = ds_addr[3];
-  address5 = ds_addr[4];
-  address6 = ds_addr[5];
+  address5 = ds_addr[2];
+  address6 = ds_addr[1];
 
   // Inicio INA3221
   Serial.print("-> Iniciando comunicacion I2C con modulos INA3221 . . . ");
@@ -264,7 +266,8 @@ void loop() {
       if (flag_comando == true) {                        // Ejecuto esto una sola vez
         digitalWrite(LED1_PIN, HIGH);       // LED ON
         Serial.println("-> PID ON");
-        mqttClient.publish("estado", "PID ON");  // Publico el estado
+        sprintf(topico_string,"%s/estado",CLIENT_ID);
+        mqttClient.publish(topico_string, "PID ON");  // Publico el estado
         flag_comando = false;               // Reinicio el flag
       }
       one_wire.convert_temperature(address2,true,false);        // Leo temparatura del sensor
@@ -276,7 +279,8 @@ void loop() {
       if (flag_comando == true) {
         digitalWrite(LED1_PIN, HIGH);         // LED ON
         Serial.println("-> MANUAL ON");
-        mqttClient.publish("estado", "MANUAL");  // Publico el estado
+        sprintf(topico_string,"%s/estado",CLIENT_ID);
+        mqttClient.publish(topico_string, "MANUAL");  // Publico el estado
         flag_comando = false;                            // Reinicio el flag
       }
       analogWrite(PWM_PIN,PWM_MAX_VALUE-cuentaPWM);  // PWM
@@ -286,7 +290,8 @@ void loop() {
         digitalWrite(LED1_PIN, LOW);       // LED OFF
         Serial.println("-> CELDA OFF");
         analogWrite(PWM_PIN,PWM_MAX_VALUE);    // PWM en alto - celda OFF
-        mqttClient.publish("estado", "PRADO");  // Publico el estado
+        sprintf(topico_string,"%s/estado",CLIENT_ID);
+        mqttClient.publish(topico_string, "PRADO");  // Publico el estado
         flag_comando = false;                           // Reinicio el flag
         Iant=0.0;
         I=0.0;        
@@ -615,7 +620,7 @@ void enviarDatosMQTT (void)
   }
 
   char dato[6];   // Cadena de caracteres donde se carga el dato a enviar
-
+  
   sprintf(dato,"%.2f",temp1);                       // Envio las temperaturas
   mqttClient.publish("MIA_TMTY_03/medicion/temperatura", dato);
   sprintf(dato,"%.2f",temp2);
