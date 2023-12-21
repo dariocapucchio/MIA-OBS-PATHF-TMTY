@@ -78,9 +78,10 @@ rom_address_t address2 = { 0x28, 0x10, 0x8F, 0xCA, 0x0A, 0x00, 0x00, 0xA9 };  //
 rom_address_t address3 = { 0x28, 0xCE, 0x17, 0xCC, 0x0A, 0x00, 0x00, 0xFE };  // Dirección del sensor 3
 rom_address_t address4 = { 0x28, 0x6D, 0xD1, 0xCC, 0x0A, 0x00, 0x00, 0x45 };  // Dirección del sensor 4
 rom_address_t address5 = { 0x28, 0x7B, 0xAF, 0xCA, 0x0A, 0x00, 0x00, 0x6A };  // Dirección del sensor 5
+rom_address_t address6 = { 0x28, 0x51, 0xA5, 0x49, 0xF6, 0xDF, 0x3C, 0x94 };  // Dirección del sensor 6
 //rom_address_t address6 = { 0x28, 0x08, 0x82, 0x96, 0xF0, 0x01, 0x3C, 0x4B };  // Dirección del sensor 6
 //rom_address_t address6 = { 0x28, 0x7C, 0xA8, 0x96, 0xF0, 0x01, 0x3C, 0x4A };  // Dirección del sensor 6
-rom_address_t address6 = { 0x28, 0x51, 0xA5, 0x49, 0xF6, 0xDF, 0x3C, 0x94 };
+
 
 rom_address_t ds_addr[6];
 
@@ -182,9 +183,9 @@ void setup() {
   }
   address1 = ds_addr[0];
   address2 = ds_addr[5];
-  address3 = ds_addr[4];
+  address3 = ds_addr[2];
   address4 = ds_addr[3];
-  address5 = ds_addr[2];
+  address5 = ds_addr[4];
   address6 = ds_addr[1];
 
   // Inicio INA3221
@@ -230,15 +231,23 @@ void setup() {
     reconnect();
   }
   // Suscripciones MQTT
-  mqttClient.subscribe("MIA_TMTY_03/control/comando");
-  mqttClient.subscribe("MIA_TMTY_03/control/pid");
-  mqttClient.subscribe("MIA_TMTY_03/control/digital");
-  mqttClient.subscribe("MIA_TMTY_03/servicio/fallas_ds_reset");
-  mqttClient.subscribe("MIA_TMTY_03/servicio/hw_reset_response");
-  mqttClient.subscribe("MIA_TMTY_03/servicio/power_cal");
-  mqttClient.subscribe("MIA_TMTY_03/servicio/i_cal");
+  sprintf(topico_string,"%s/control/comando",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/control/pid",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/control/digital",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/servicio/fallas_ds_reset",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/servicio/hw_reset_response",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/servicio/power_cal",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/servicio/i_cal",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
 
-  mqttClient.publish("MIA_TMTY_03/servicio/hw_reset","R");    // Publico el reset del hw
+  sprintf(topico_string,"%s/servicio/hw_reset",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string,"R");    // Publico el reset del hw
   mqttClient.loop();
 
 #endif
@@ -263,36 +272,36 @@ void loop() {
 
   switch (comando) {
     case 'A':   // Si llego una A -- modo automatico PID
-      if (flag_comando == true) {                        // Ejecuto esto una sola vez
-        digitalWrite(LED1_PIN, HIGH);       // LED ON
+      if (flag_comando == true) {                     // Ejecuto esto una sola vez
+        digitalWrite(LED1_PIN, HIGH);                 // LED ON
         Serial.println("-> PID ON");
-        sprintf(topico_string,"%s/estado",CLIENT_ID);
+        sprintf(topico_string,"%s/estado",CLIENT_ID); // Agrago el nombre del cliente al topico
         mqttClient.publish(topico_string, "PID ON");  // Publico el estado
-        flag_comando = false;               // Reinicio el flag
+        flag_comando = false;                         // Reinicio el flag
       }
-      one_wire.convert_temperature(address2,true,false);        // Leo temparatura del sensor
+      one_wire.convert_temperature(address2,false,false);        // Leo temparatura del sensor
       Input = medirTemp(temp2, address2);   // Temperatura del lado frio a la entrada del PID
       myPID.Compute();                      // Computo del PID
       analogWrite(PWM_PIN, Output);         // Salida a la celda
       break;
     case 'M':  // Si llego una M -- modo manual
-      if (flag_comando == true) {
-        digitalWrite(LED1_PIN, HIGH);         // LED ON
+      if (flag_comando == true) {                     // Ejecuto esto una sola vez
+        digitalWrite(LED1_PIN, HIGH);                 // LED ON
         Serial.println("-> MANUAL ON");
-        sprintf(topico_string,"%s/estado",CLIENT_ID);
+        sprintf(topico_string,"%s/estado",CLIENT_ID); // Agrago el nombre del cliente al topico
         mqttClient.publish(topico_string, "MANUAL");  // Publico el estado
-        flag_comando = false;                            // Reinicio el flag
+        flag_comando = false;                         // Reinicio el flag
       }
-      analogWrite(PWM_PIN,PWM_MAX_VALUE-cuentaPWM);  // PWM
+      analogWrite(PWM_PIN,PWM_MAX_VALUE-cuentaPWM);   // Actualizo el valor del PWM
       break;
     case 'X':  // Si llego una X -- parada
-      if (flag_comando == true) {
-        digitalWrite(LED1_PIN, LOW);       // LED OFF
+      if (flag_comando == true) {                     // Ejecuto esto una sola vez
+        digitalWrite(LED1_PIN, LOW);                  // LED OFF
         Serial.println("-> CELDA OFF");
-        analogWrite(PWM_PIN,PWM_MAX_VALUE);    // PWM en alto - celda OFF
-        sprintf(topico_string,"%s/estado",CLIENT_ID);
-        mqttClient.publish(topico_string, "PRADO");  // Publico el estado
-        flag_comando = false;                           // Reinicio el flag
+        analogWrite(PWM_PIN,PWM_MAX_VALUE);           // PWM en alto - celda OFF
+        sprintf(topico_string,"%s/estado",CLIENT_ID); // Agrago el nombre del cliente al topico
+        mqttClient.publish(topico_string, "PRADO");   // Publico el estado
+        flag_comando = false;                         // Reinicio el flag
         Iant=0.0;
         I=0.0;        
       }
@@ -316,7 +325,6 @@ void loop() {
   if (millis() - previousMillis > DELAY_MQTT) {  // Envio todo al broker cada DELAY_MQTT
     Serial.print("mide -> ");
     medirTodo();
-    //imprimirTodo();
     Serial.print(" MQTT -> ");
     enviarDatosMQTT();
     Serial.println("enviado :)");
@@ -622,48 +630,68 @@ void enviarDatosMQTT (void)
   char dato[6];   // Cadena de caracteres donde se carga el dato a enviar
   
   sprintf(dato,"%.2f",temp1);                       // Envio las temperaturas
-  mqttClient.publish("MIA_TMTY_03/medicion/temperatura", dato);
+  sprintf(topico_string,"%s/medicion/temperatura",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",temp2);
-  mqttClient.publish("MIA_TMTY_03/medicion/temperatura", dato);
+  sprintf(topico_string,"%s/medicion/temperatura",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",temp3);
-  mqttClient.publish("MIA_TMTY_03/medicion/temperatura", dato);
+  sprintf(topico_string,"%s/medicion/temperatura",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",temp4);
-  mqttClient.publish("MIA_TMTY_03/medicion/temperatura", dato);
+  sprintf(topico_string,"%s/medicion/temperatura",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",temp5);
-  mqttClient.publish("MIA_TMTY_03/medicion/temperatura", dato);
+   sprintf(topico_string,"%s/medicion/temperatura",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",temp6);
-  mqttClient.publish("MIA_TMTY_03/medicion/temperatura", dato);
+  sprintf(topico_string,"%s/medicion/temperatura",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
 
   sprintf(dato,"%.2f",I);                           // Envio la corriente de la celda
-  mqttClient.publish("MIA_TMTY_03/medicion/i_celda", dato);
+  sprintf(topico_string,"%s/medicion/i_celda",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
 
   sprintf(dato,"%d",ds_err);                        // Cantidad de fallas
-  mqttClient.publish("MIA_TMTY_03/servicio/fallas_ds", dato);   // Publico el estado
+  sprintf(topico_string,"%s/servicio/fallas_ds",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
 
   sprintf(dato,"%.2f",ina0_i1*1000.0);              // Envio las corrientes en [mA]
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina0_v1);                     // Envio las tensiones en [V]
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina0_i2*1000.0);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina0_v2);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina0_i3*1000.0);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina0_v3);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina1_i1*1000.0);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina1_v1);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina1_i2*1000.0);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina1_v2);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina1_i3*1000.0);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
   sprintf(dato,"%.2f",ina1_v3);
-  mqttClient.publish("MIA_TMTY_03/medicion/RF", dato);
+  sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.publish(topico_string, dato);
 }
 
 /**
