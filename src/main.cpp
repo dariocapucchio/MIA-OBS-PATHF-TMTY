@@ -26,7 +26,7 @@
 // FLUJO
 // Para realizar pruebas por el puerto serial poner en 1
 // Para realizara el control via mqtt poner en 0
-#define PRUEBA_SERIAL 0
+#define PRUEBA_SERIAL 1
 
 // HARDWARE
 #define DO1_PIN       6   // Salida digital 1 - GPIO 6 (pico pin 9)
@@ -53,6 +53,7 @@
 float medirTemp(float temp, rom_address_t addr);
 void medirTodo(void);
 void callback(char *topic, byte *payload, unsigned int length); // Funcion para la recepcion via MQTT
+void subscribeMQTT(void);
 void reconnect(void);                                           // Reconectar al servidor mqtt
 void enviarDatosMQTT (void);
 void pinToggle(int pin);
@@ -107,7 +108,7 @@ float I = 0.0;                // Corriente actual
 float Iant = 0.0;             // Corriente 
 uint8_t n = 0;                // Cantidad de muestras de corriente
 //float Sensibilidad = 0.066;   // Sensibilidad en V/A para sensor de 30A
-uint16_t offsetI = 1604;      // I Offset
+uint16_t offsetI = 1560;      // I Offset
 double spanI = -0.032;        // I Span
 
 // DEFINICION DE OBJETO PARA SENSOR DE CORRIENTE INA3221
@@ -229,23 +230,10 @@ void setup() {
   if (!client.connected())
   {
     reconnect();
+  } else {
+    subscribeMQTT();      // Suscripciones MQTT
   }
-  // Suscripciones MQTT
-  sprintf(topico_string,"%s/control/comando",CLIENT_ID); // Agrago el nombre del cliente al topico
-  mqttClient.subscribe(topico_string);
-  sprintf(topico_string,"%s/control/pid",CLIENT_ID); // Agrago el nombre del cliente al topico
-  mqttClient.subscribe(topico_string);
-  sprintf(topico_string,"%s/control/digital",CLIENT_ID); // Agrago el nombre del cliente al topico
-  mqttClient.subscribe(topico_string);
-  sprintf(topico_string,"%s/servicio/fallas_ds_reset",CLIENT_ID); // Agrago el nombre del cliente al topico
-  mqttClient.subscribe(topico_string);
-  sprintf(topico_string,"%s/servicio/hw_reset_response",CLIENT_ID); // Agrago el nombre del cliente al topico
-  mqttClient.subscribe(topico_string);
-  sprintf(topico_string,"%s/servicio/power_cal",CLIENT_ID); // Agrago el nombre del cliente al topico
-  mqttClient.subscribe(topico_string);
-  sprintf(topico_string,"%s/servicio/i_cal",CLIENT_ID); // Agrago el nombre del cliente al topico
-  mqttClient.subscribe(topico_string);
-
+  
   sprintf(topico_string,"%s/servicio/hw_reset",CLIENT_ID); // Agrago el nombre del cliente al topico
   mqttClient.publish(topico_string,"R");    // Publico el reset del hw
   mqttClient.loop();
@@ -300,12 +288,26 @@ void loop() {
         Serial.println("-> CELDA OFF");
         analogWrite(PWM_PIN,PWM_MAX_VALUE);           // PWM en alto - celda OFF
         sprintf(topico_string,"%s/estado",CLIENT_ID); // Agrago el nombre del cliente al topico
-        mqttClient.publish(topico_string, "PRADO");   // Publico el estado
+        mqttClient.publish(topico_string, "PARADO");   // Publico el estado
         flag_comando = false;                         // Reinicio el flag
         Iant=0.0;
         I=0.0;        
       }
       break;
+#if PRUEBA_SERIAL == 1
+    case 'v':
+    if(flag_comando == true){
+      if(digitalRead(V_OUT_PIN)){
+        digitalWrite(V_OUT_PIN, LOW);  // Vout OFF
+        Serial.println("Vout OFF");
+      }else{
+        digitalWrite(V_OUT_PIN, HIGH);  // Vout ON
+        Serial.println("Vout ON");
+      }
+      flag_comando = false;
+    }
+    break;
+#endif
     default: // OTRO CARACTER
       //Serial.println("-> Comando incorrecto :(");
       break;
@@ -341,7 +343,7 @@ void loop() {
 
 #else
   if (millis() - previousMillis > DELAY_MQTT) {  // Envio todo al broker cada DELAY_MQTT
-    Serial.print("mide -> ");
+    Serial.println("mide...");
     medirTodo();
     imprimirTodo();
     // Toggle led - Alive test
@@ -410,28 +412,36 @@ void imprimirTodo(void)
   Serial.print(temp6);
   Serial.println("C");
   // Linea 2 - Corriente de la celda de peltier
-  Serial.print("I: ");
-  Serial.print(I);
-  Serial.println("A");
+  //Serial.print("I: ");
+  //Serial.print(I);
+  //Serial.println("A");
   // Linea 3 - Sensor INA0
   Serial.print("INA0 I1: ");
   Serial.print(ina0_i1);
-  Serial.print("A - INA0 V1: ");
+  Serial.print("A - V1: ");
   Serial.print(ina0_v1);
-  Serial.print("V - INA0 I2: ");
+  Serial.print("V - I2: ");
   Serial.print(ina0_i2);
-  Serial.print("A - INA0 V2: ");
+  Serial.print("A - V2: ");
   Serial.print(ina0_v2);
+  Serial.print("V - I3: ");
+  Serial.print(ina0_i3);
+  Serial.print("A - V3: ");
+  Serial.print(ina0_v3);
   Serial.println("V");
   // Linea 4 - Sensor INA1
   Serial.print("INA1 I1: ");
   Serial.print(ina1_i1);
-  Serial.print("A - INA1 V1: ");
+  Serial.print("A - V1: ");
   Serial.print(ina1_v1);
-  Serial.print("V - INA1 I2: ");
+  Serial.print("V - I2: ");
   Serial.print(ina1_i2);
-  Serial.print("A - INA1 V2: ");
+  Serial.print("A - V2: ");
   Serial.print(ina1_v2);
+  Serial.print("V - I3: ");
+  Serial.print(ina1_i3);
+  Serial.print("A - V3: ");
+  Serial.print(ina1_v3);
   Serial.println("V");
 }
 
@@ -592,6 +602,28 @@ void callback(char *topic, byte *payload, unsigned int length)
 }
 
 /**
+ * @brief Subscripcion a todos los topicos de MQTT
+*/
+void subscribeMQTT(void)
+{
+  sprintf(topico_string,"%s/control/comando",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/control/pid",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/control/digital",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/servicio/fallas_ds_reset",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/servicio/hw_reset_response",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/servicio/power_cal",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+  sprintf(topico_string,"%s/servicio/i_cal",CLIENT_ID); // Agrago el nombre del cliente al topico
+  mqttClient.subscribe(topico_string);
+}
+
+
+/**
  * @brief Reconexion MQTT
 */
 void reconnect()
@@ -604,6 +636,7 @@ void reconnect()
     if (mqttClient.connect(CLIENT_ID))
     {
       Serial.println("--> connected");
+      subscribeMQTT();
     }
     else
     {
