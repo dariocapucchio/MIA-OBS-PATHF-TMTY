@@ -26,7 +26,7 @@
 // FLUJO
 // Para realizar pruebas por el puerto serial poner en 1
 // Para realizara el control via mqtt poner en 0
-#define PRUEBA_SERIAL 1
+#define PRUEBA_SERIAL 0
 
 // HARDWARE
 #define DO1_PIN       6   // Salida digital 1 - GPIO 6 (pico pin 9)
@@ -725,6 +725,23 @@ void enviarDatosMQTT (void)
   sprintf(dato,"%.2f",ina1_v3);
   sprintf(topico_string,"%s/medicion/RF",CLIENT_ID); // Agrago el nombre del cliente al topico
   mqttClient.publish(topico_string, dato);
+
+  switch(comando) {
+    case 'A':
+      sprintf(topico_string,"%s/estado",CLIENT_ID); // Agrago el nombre del cliente al topico
+      mqttClient.publish(topico_string, "PID ON");  // Publico el estado
+      break;
+    case 'M':
+      sprintf(topico_string,"%s/estado",CLIENT_ID); // Agrago el nombre del cliente al topico
+      mqttClient.publish(topico_string, "MANUAL");  // Publico el estado
+      break;
+    case 'X':
+      sprintf(topico_string,"%s/estado",CLIENT_ID); // Agrago el nombre del cliente al topico
+      mqttClient.publish(topico_string, "PARADO");  // Publico el estado
+      break;
+    default:
+      break;
+  }
 }
 
 /**
